@@ -3,5 +3,4 @@
 Jason Anthony Trillo
 
 Jayson T. Velasco
-
-wala nako kasabot
+sad
