@@ -23,4 +23,25 @@ class ProfileController extends Controller
     {
         return response()->json(Profile::all());
     }
+
+    // Update profile
+    public function update(Request $request, $id)
+    {
+        $profile = Profile::findOrFail($id);
+        $profile->update([
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+        ]);
+
+        return response()->json($profile);
+    }
+
+    // Delete profile
+    public function destroy($id)
+    {
+        $profile = Profile::findOrFail($id);
+        $profile->delete();
+
+        return response()->json(['message' => 'Profile deleted']);
+    }
 }

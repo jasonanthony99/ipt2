@@ -1,58 +1,104 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 
 export default function Home() {
-  const [profiles, setProfiles] = useState([]);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [message, setMessage] = useState("");
+  const [profiles, setProfiles] = useState([]);
+  const [editingId, setEditingId] = useState(null);
 
-  // Fetch all profiles from DB
+  // Fetch profiles
   const fetchProfiles = async () => {
     try {
-      const res = await axios.get("http://127.0.0.1:8000/api/profiles");
-      setProfiles(res.data);
-    } catch (error) {
-      console.error("Error fetching profiles:", error);
+      const response = await fetch("http://127.0.0.1:8000/api/profiles");
+      const data = await response.json();
+      setProfiles(data);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // Load profiles on component mount
   useEffect(() => {
     fetchProfiles();
   }, []);
 
-  // Save a new profile
+  // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!firstName || !lastName) {
+      setMessage("❌ Please fill in both fields");
+      return;
+    }
+
+    const url = editingId
+      ? `http://127.0.0.1:8000/api/profiles/${editingId}`
+      : "http://127.0.0.1:8000/api/profiles";
+
+    const method = editingId ? "PUT" : "POST";
+
     try {
-      const res = await axios.post("http://127.0.0.1:8000/api/profiles", {
-        first_name: firstName,
-        last_name: lastName,
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ first_name: firstName, last_name: lastName }),
       });
 
-      // Add the new profile to the list immediately
-      setProfiles((prev) => [...prev, res.data]);
+      const data = await response.json();
 
-      // Clear input fields
-      setFirstName("");
-      setLastName("");
-    } catch (error) {
-      console.error("Error saving profile:", error);
+      if (response.ok) {
+        setMessage(editingId ? "✏️ Profile updated!" : "✅ Profile saved!");
+        setFirstName("");
+        setLastName("");
+        setEditingId(null);
+        fetchProfiles();
+      } else {
+        setMessage("❌ " + data.message);
+      }
+    } catch (err) {
+      setMessage("❌ Something went wrong");
+      console.error(err);
+    }
+  };
+
+  const handleEdit = (profile) => {
+    setEditingId(profile.id);
+    setFirstName(profile.first_name);
+    setLastName(profile.last_name);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure?")) return;
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/profiles/${id}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+
+      if (response.ok) {
+        setMessage("🗑️ Profile deleted!");
+        fetchProfiles();
+      } else {
+        setMessage("❌ Failed to delete");
+      }
+    } catch (err) {
+      setMessage("❌ Something went wrong");
+      console.error(err);
     }
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Profiles</h1>
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="mb-6">
+    <div className="home-container">
+      <h1>Jason's Profiles Manager</h1>
+      <form onSubmit={handleSubmit}>
         <input
           type="text"
           placeholder="First Name"
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
-          className="border p-2 mr-2"
           required
         />
         <input
@@ -60,24 +106,43 @@ export default function Home() {
           placeholder="Last Name"
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
-          className="border p-2 mr-2"
           required
         />
-        <button
-          type="submit"
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Save
-        </button>
+        <button type="submit">{editingId ? "Update" : "Save"}</button>
       </form>
 
-      {/* Display list of profiles */}
-      <ul className="space-y-2">
-        {profiles.map((p) => (
-          <li key={p.id} className="border p-2 rounded bg-gray-100">
-            <strong>{p.first_name}</strong> {p.last_name}
-          </li>
-        ))}
+      {message && (
+        <p
+          className={`message ${
+            message.includes("✅") || message.includes("✏️") ? "success" : "error"
+          }`}
+        >
+          {message}
+        </p>
+      )}
+
+      <ul className="profiles">
+        {profiles.length > 0 ? (
+          profiles.map((p) => (
+            <li key={p.id}>
+              <span>
+                {p.first_name} {p.last_name}
+              </span>
+              <div className="actions">
+                <button className="edit" onClick={() => handleEdit(p)}>
+                  ✏️ Edit
+                </button>
+                <button className="delete" onClick={() => handleDelete(p.id)}>
+                  🗑️ Delete
+                </button>
+              </div>
+            </li>
+          ))
+        ) : (
+          <p style={{ gridColumn: "1/-1", textAlign: "center", color: "#666" }}>
+            No profiles yet. Add one above!
+          </p>
+        )}
       </ul>
     </div>
   );
